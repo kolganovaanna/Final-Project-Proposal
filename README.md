@@ -37,7 +37,7 @@ I chose 2 runs instead of 1 to prove that the code I am going to develop is resp
 
 **Part B**
 
-This part focuses on describing specific steps I plan to take to analyze the runs. Note that this proposal is more practical than theoretical and will include some actual commands that I ran and some steps that I've already completed. So, you will see outputs in this directory. It may also include some steps I'm still in the process of figuring out. I included my practical work to gain feedback on the logic of the workflow and commands (if possible). I decided to leave some outputs because I wanted to see what's in the file to determine what exactly my analysis will focus on. It will also help to determine specific goals I want to achieve in my final submission. 
+This part focuses on describing specific steps I plan to take to analyze the runs. Note that this proposal is more practical than theoretical and will include some actual commands that I ran and some steps that I've already completed. So, you will see outputs. It may also include some steps I'm still in the process of figuring out. I included my practical work to gain feedback on the logic of the workflow and commands (if possible). I decided to leave some outputs because I wanted to see what's in the file to determine what exactly my analysis will focus on. It will also help to determine specific goals I want to achieve in my final submission. I never worked with files like this on my own, so the more I practically learn about it, the easier it will be for me to figure out what to do.
 
 4. Creating a working directory and structurizing the project
 
@@ -68,18 +68,77 @@ git add .gitignore
 git commit -m "Adding a Gitignore file"
 ```
 
+5. Basic analysis of the runs
+
+First, I want to gather some general information about these files. I ran the following commands: 
+
+```bash
+ls -lh data/SRR14784363.fastq
+ls -lh data/SRR14784377.fastq
+```
+
+The outputs were:
+
+```bash
+-rw-rw----+ 1 kolganovaanna PAS2880 82M Nov 12 16:35 data/SRR14784363.fastq
+-rw-rw----+ 1 kolganovaanna PAS2880 79M Nov 12 16:35 data/SRR14784377.fastq
+```
+
+I then counted the total number of lines and the number of gemonic features in the files using these commands:
+
+```bash
+wc -l data/SRR14784363.fastq > results/
+wc -l data/SRR14784377.fastq
+
+grep -v "^@" data/SRR14784363.fastq | wc -l
+grep -v "^@" data/SRR14784377.fastq | wc -l
+```
+
+The outputs were:
+
+```bash
+593832 data/SRR14784363.fastq
+575896 data/SRR14784377.fastq
+
+445374
+431922
+```
+I think I am going to modify all the code lines above to have the outputs printed in the 2 separate files under results/. I will use ">>" insteaf of ">" so that the outputs don't overwrite each other. I will also make the file readable so it's not just a bunch of unstructurized information:
+
+```bash
+echo "File size:" >> results/run1_general_info.txt
+ls -lh data/SRR14784363.fastq  >> results/run1_general_info.txt
+
+echo "File size:" >> results/run2_general_info.txt
+ls -lh data/SRR14784377.fastq >> results/run2_general_info.txt
+
+echo "Total lines:" >> results/run1_general_info.txt
+wc -l data/SRR14784363.fastq >> results/run1_general_info.txt
+
+echo "Total lines:" >> results/run2_general_info.txt
+wc -l data/SRR14784377.fastq >> results/run2_general_info.txt
+
+echo "Reads (no headers):" >> results/run1_general_info.txt
+grep -v "^@" data/SRR14784363.fastq | wc -l >> results/run1_general_info.txt
+
+echo "Reads (no headers):" >> results/run2_general_info.txt
+grep -v "^@" data/SRR14784377.fastq | wc -l >> results/run2_general_info.txt
+```
+
+I can see that this code worked and you can check the outputs files. 
+
+Maybe I will try making a count table modifying this command we used in class:
+
+```bash
+tail -n +2 metadata.tsv | cut -f 3 | sort | uniq -c
+```
+But not sure how to do this for fastq files. Maybe I will use AI to help me with this. 
+
+
+6. 
 
 
 
-
-To obtain 16S sequencing data
-
-wc -l data/SRR14784356.fastq.gz
-   
-   head data/SRR14784356.fastq.gz
-   
-   grep -v data/SRR14784356.fastq.gz | wc -l
-zcat data/SRR14784356.fastq.gz | grep -v "methanogen" | cut -f1 | sort | uniq > results/methane.txt
 
 zcat data/SRR14784363.fastq | head -n 40
 
