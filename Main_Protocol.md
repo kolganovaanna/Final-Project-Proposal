@@ -1,6 +1,6 @@
 ## General information
 
-- Title: Characterization of Rumen Microbiome via 16S Metabarcoding
+- Title: 16S Data Processing with Cutadapt & DADA2 for Rumen Microbiome Analysis
 - Author: Anna kolganova
 - Date: 2025-11-30
 - Environment: Pitzer cluster at OSC via VS Code
@@ -11,9 +11,13 @@
 This is a final project progress report focusing on analyzing 16S sequencing data obtained by processing rumen fluid samples. 
 
 ## Goal and objectives
-cp SRR14784363_1.fastq.gz data/SRR14784363/
-cp SRR14784363_2.fastq.gz data/SRR14784363/
 
+Goal: To process 16S sequencing data and generate high-quality microbial community profiles from rumen samples.
+
+Objectives:
+
+1. Explore microbial community composition
+2. Remove low-quality reads and adapters
 
 ## Protocol
 
@@ -26,8 +30,7 @@ I obtained samples from the study proposed and found by Menuka: [research paper]
 
 2. Obtaining specific samples
 
-I obtain specific samples by searching PRJNA736529 project number (the study project number) on the NIH website: [datasets](https://www.ncbi.nlm.nih.gov/biosample?LinkName=bioproject_biosample_all&from_uid=736529)
-I chose samples #1 (run SRR14784363) and #14 (run SRR14784377). 
+I chose samples #1 (run SRR14784363) and #14 (run SRR14784377). I obtaines reverse and forward reads for these samples using this website: [SRA Explorer](https://sra-explorer.info/#)
 
 
 3. Run descriptions
@@ -40,9 +43,7 @@ This run consists of 99.44% identified reads and 0.56% unidentified reads. Out o
 
 This run consists of 97.83% identified reads and 2.17% unidentified reads. Out of the 97.83%, domain Bacteria composes 96.80% and domain Archaea contributes only 0.95%. The length of each read is 250. Learn more about the run using this link: [SRR14784377](https://trace.ncbi.nlm.nih.gov/Traces/?view=run_browser&page_size=10&acc=SRR14784377&display=metadata)
 
-Menuka kindly helped me to download both forward and reverse reads ([obtaining reads](https://sra-explorer.info/)). I copied these files from this directory: '/fs/ess/PAS2880/users/menuka/Anna_help'. Each run corresponds to one biological sample, but it includes multiple files: the lite file plus the paired-end FASTQ files (_1 for forward reads and _2 for reverse reads).
-
-The first run contains substantially fewer Archaea compared to the second run, while the second run also has slightly fewer Bacteria. Comparing the sequences from these two runs can provide insights into differences in the structure of their microbial populations. It is possible that some of the rumen fluid donors (the 24 beef cattle) are lower methane emitters than others due to variations in their microbiome composition, which is an interesting distinction to explore.
+The first run contains substantially fewer Archaea compared to the second run, while the second run also has slightly fewer Bacteria. 
 
 **Part B**
 
@@ -55,10 +56,9 @@ touch Main_Protocol.md Notes.md
 mkdir data results scripts
 ```
 File "Main_Protocol.md" is the central document of the project, describing steps used in this project, their sugnificance, and outputs. File "Notes.md" contains the same information but has detailed housekeeping commands, in case more information is needed to explain how and what I did in the main .md. 
-'Data' directory withing FinalProject contains analyzed data files with reverse and forward reads. This directory is split into 2 subdierectories corresponding to the name of the samples I'm working with. 
-'Results' directory is split into the same 2 subdirectories and contains output files for commands used in the protocol. 'Scripts' directory contains code scripts used throughout the project. 
+'Data' directory withing FinalProject contains analyzed data files with inittial reverse and forward reads as well as datasets added during protocol execution. 'Results' directory contains output files for commands used in the protocol. 'Scripts' directory contains code scripts used throughout the project. 
 
-A Git repositoryb was initialized after all of the initial dirs are made:
+A Git repository was initialized after all of the initial dirs are made:
 
 ```bash
 git init
@@ -70,7 +70,7 @@ git add .gitignore
 git commit -m "Adding a Gitignore file"
 ```
 
-**Note**: files that should be ignored in this working directory are ProgressReport and ProjectProposal. 
+**Note**: files that should be ignored in this working directory are ProgressReport and ProjectProposal. They are kept in the dir to only serve as the background for the project. 
 
 5. General analysis of the reads
 
@@ -95,7 +95,7 @@ To count the number of genomic features, I used this command:
 grep -v "^@" data/SRR14784363/SRR14784363_1.fastq | wc -l
 ```
 
-I created .txt files with obtained general information for each of my samples under 'results/'. Below are the commands I used specifically for SRR14784363.lite.1_1.fastq:
+I created .txt files with obtained general information for each of my samples under 'results/'. Below are the commands I used specifically for SRR14784363_1.fastq:
 
 ```bash
 echo "File size:" >> results/SRR14784363/r1_general_info.txt
@@ -134,7 +134,7 @@ CTACGTACCTATGGGATGCAGCAGTGGGGGATATTGCGCAATGGGGGAAACCCTGACGCAGCAACGCCGCGTGGAGGATG
 +
 FFFFFFFFFFFFFFFFFFFFFFFFFFFFFF,F,FFFFFFFFFFFFFFFF,FFFF:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF,FFFFFFF:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:FFFFFFFFFFFFFFFFF:FFFFFFFFFFFF:FFFFFFFF,FFFFF:FFF:FFFFF:FFF
 ```
-Let's talk about the quality scores first to have some understanding of the reads. Fs stand for high-quality base, ":" stand for good quality, and "," low quality scores. 
+Let's talk about the quality scores first to have some understanding of the reads. Fs stand for high-quality base, ":" stand for relatively good quality, and "," low quality scores. Most of my reads are of high quality but there are some that are low-quality. These are the reads I am targeting in the project. 
 
 GitHub repo update:
 
@@ -186,14 +186,21 @@ squeue -u kolganovaanna -l
 The outputs were:
 
 ```bash
-Submitted batch job 42366528
-Sat Dec 06 12:02:32 2025
+Submitted batch job 42403284
+Mon Dec 08 14:32:02 2025
 JOBID PARTITION     NAME     USER    STATE       TIME TIME_LIMI  NODES NODELIST(REASON)
-42366058       cpu ondemand kolganov  RUNNING    1:23:17   3:00:00      1 p0222
+42403284       cpu cutadapt kolganov  RUNNING       0:01     30:00      1 p0016
+42397559       cpu ondemand kolganov  RUNNING    1:59:59   3:00:00      1 p0020
+42397553   cpu-exp ondemand kolganov  RUNNING    2:00:36   3:00:00      1 p0840
 
-Submitted batch job 42366529
+Submitted batch job 42403302
+Mon Dec 08 14:34:16 2025
+JOBID PARTITION     NAME     USER    STATE       TIME TIME_LIMI  NODES NODELIST(REASON)
+42397559       cpu ondemand kolganov  RUNNING    2:02:11   3:00:00      1 p0020
+42403302 cpu,cpu-e cutadapt kolganov  PENDING       0:00     30:00      1 (Reservation)
+42397553   cpu-exp ondemand kolganov  RUNNING    2:02:48   3:00:00      1 p0840
 ```
-**Note**: the commands run really fast so I couldn't catch they jobs running.However, my .err files had no content and .out files indicated that the scripts were run successfully. I also had no FAIL emails.
+**Note**: the commands run really fast so I couldn't catch the second slurm batch job running. However, my .err files had no content and .out files indicated that the scripts were run successfully. I also had no FAIL emails.
 
 The output files include a summary of how the script processed the reads. Almost all of the reads contained the adapters. Nearly all reads were trimmed and passed through Cutadapt. Let's do one final check of the outputs using these commands:
 
@@ -214,9 +221,21 @@ grep "with adapter:" slurm-cutadapt77.out
 
 We see that the percentages of reads that contained adapters is in the upper 90s, which can tell us that there's likely nothing wrong with the adapter sequences I provided or with Cutadapt syntax. 
 
+```bash
+git add scripts/*.sh Main_Protocol.md Notes.md
+git commit -m "Part C"
+```
+
 8. DADA2 Pipline Construction 
-cp -rv FinalProject/results/SRR14784363/cutadapt /fs/ess/PAS2880/users/$USER/
 
-cp -rv results/SRR14784363/cutadapt /fs/ess/PAS2880/users/$USER/
+DAD2 pipeline can help characterize microbiome composition. R Protocol for DADA2 can be found in this directory, in the DADA2.qmd file. DADA2.rmarkdown is a backup file with the same protocol and it can be ignored. You can also take a look at the rendered DADA2.html file. 
 
+Before starting with R, I went into Cluster -> Pitzer Shell Access and used this command:
 
+```bash
+cp -rv /fs/ess/PAS2880/users/kolganovaanna/FinalProject/data/cutadapt_combined /fs/ess/PAS2880/users/$USER/
+```
+
+**Conclusions**
+
+According to the analysis, our reads were mostly high-quality. 

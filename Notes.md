@@ -534,3 +534,9 @@ git branch -M main
 git remote add origin git@github.com:kolganovaanna/ProgressReport.git
 git push -u origin main
 ```
+
+# Make sure your environment is active
+conda activate /users/PAS2880/kolganovaanna/.conda/envs/mbar24
+
+# Try installing specifically for your user environment
+conda install -c bioconda -c conda-forge --prefix /users/PAS2880/kolganovaanna/.conda/envs/mbar24 cutadapt
