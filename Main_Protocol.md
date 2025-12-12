@@ -253,6 +253,8 @@ Before starting with R, I went into Cluster -> Pitzer Shell Access and used this
 cp -rv /fs/ess/PAS2880/users/kolganovaanna/FinalProject/data/cutadapt_combined /fs/ess/PAS2880/users/$USER/
 ```
 
+**Note**: I am going to take my results folder out of .gitignore because I wangt you to be able to see all the graphs and slurm outputs.
+
 **Conclusions**
 
 According to the analysis, a good number of reads successfully passed all processing steps. I was able to generate a high-quality microbial community profile, which told me that Bacteroidota and Firmicutes are most abundant microbes in my samples. These taxonomic groups are actually very common in the rumen, which makes me more confident in the quality of my dada2 pipeline. 
@@ -262,9 +264,9 @@ I believe I completed both course surveys.
 
 *Git commit*:
 ```bash
-git add Main_Protocol.md Notes.md DADA2.html DADA2.qmd
+git add Main_Protocol.md Notes.md DADA2.html DADA2.qmd results
 git commit -m "Final Commit"
+git remote add origin git@github.com:kolganovaanna/Final-Project-.git
 git branch -M main
-git remote add origin git@github.com:kolganovaanna/FinalProject.git
 git push -u origin main
 ```
