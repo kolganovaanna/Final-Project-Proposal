@@ -30,7 +30,15 @@ I obtained samples from the study proposed and found by Menuka: [research paper]
 
 2. Obtaining specific samples
 
-I chose samples #1 (run SRR14784363) and #14 (run SRR14784377). I obtaines reverse and forward reads for these samples using this website: [SRA Explorer](https://sra-explorer.info/#)
+I chose samples #1 (run SRR14784363) and #14 (run SRR14784377). I obtained reverse and forward reads for these samples using this website: [SRA Explorer](https://sra-explorer.info/#). These commands worked for me:
+
+```bash
+#!/usr/bin/env bash
+curl -L ftp://ftp.sra.ebi.ac.uk/vol1/fastq/SRR147/063/SRR14784363/SRR14784363_1.fastq.gz -o SRR14784363_AMPLICON_of_rumen_cattle_1.fastq.gz
+curl -L ftp://ftp.sra.ebi.ac.uk/vol1/fastq/SRR147/063/SRR14784363/SRR14784363_2.fastq.gz -o SRR14784363_AMPLICON_of_rumen_cattle_2.fastq.gz
+curl -L ftp://ftp.sra.ebi.ac.uk/vol1/fastq/SRR147/077/SRR14784377/SRR14784377_1.fastq.gz -o SRR14784377_AMPLICON_of_rumen_cattle_1.fastq.gz
+curl -L ftp://ftp.sra.ebi.ac.uk/vol1/fastq/SRR147/077/SRR14784377/SRR14784377_2.fastq.gz -o SRR14784377_AMPLICON_of_rumen_cattle_2.fastq.gz
+```
 
 
 3. Run descriptions
@@ -56,7 +64,7 @@ touch Main_Protocol.md Notes.md
 mkdir data results scripts
 ```
 File "Main_Protocol.md" is the central document of the project, describing steps used in this project, their sugnificance, and outputs. File "Notes.md" contains the same information but has detailed housekeeping commands, in case more information is needed to explain how and what I did in the main .md. 
-'Data' directory withing FinalProject contains analyzed data files with inittial reverse and forward reads as well as datasets added during protocol execution. 'Results' directory contains output files for commands used in the protocol. 'Scripts' directory contains code scripts used throughout the project. 
+'Data' directory within FinalProject contains analyzed data files with inittial reverse and forward reads as well as datasets added during protocol execution. 'Results' directory contains output files for commands used in the protocol. 'Scripts' directory contains code scripts used throughout the project. 
 
 A Git repository was initialized after all of the initial dirs are made:
 
@@ -74,7 +82,7 @@ git commit -m "Adding a Gitignore file"
 
 5. General analysis of the reads
 
-the purpose of the step is to gather some general data on my files. These data include  file size, total number of lines, and the number of gemonic features. In the main protocol, I will show commands I used only for SRR14784363_1.fastq.gz sample to practically illustrate how I gathered these general information for all of my runs. 
+The purpose of the step is to gather some general data on my files. These data include  file size, total number of lines, and the number of gemonic features. In the main protocol, I will show commands I used only for SRR14784363_1.fastq.gz sample to practically illustrate how I gathered these general information for all of my runs. 
 
 To obtain sample size I used this command:
 
@@ -105,7 +113,7 @@ wc -l data/SRR14784363/SRR14784363_1.fastq  >> results/SRR14784363/r1_general_in
 echo "Reads(no headers):" >> results/SRR14784363/r1_general_info.txt
 grep -v "^@"  data/SRR14784363/SRR14784363_1.fastq | wc -l  >> results/SRR14784363/r1_general_info.txt
 ```
-According to the results, we can say that these samples are pretty similar in size and number of reads. 
+I used the same commands for my ther 3 files (check Notes.md). According to the results, we can say that these samples are pretty similar in size and number of reads. 
 
 6. Taking a closer look at the samples
 
@@ -147,7 +155,7 @@ git commit -m "Part B"
 
 7. Using Cutadapt to exclude primer sequences
 
-Because the samples I'm working with are metabarcoding, each read contains primer sequences. These sequences are identical across reads. Thus, in order to avoid any innacuracies that the presence of the primer sequences can intrduce to the analysis, we will remove the primers first. For this purpose I used cutadapt.
+Because my samples were generated using metabarcoding, each read contains primer sequences that are identical across all reads. To prevent inaccuracies that these primer sequences could introduce into downstream analyses, the primers must be removed before further processing. For this step, I used Cutadapt.
 
 First, primer sequences need to be identified and stored as variables:
 
@@ -174,7 +182,7 @@ CTGSTGCVYCCCRTAGG
 ATTAGATACCCNNGTAGTCC
 ```
 
-Next, we I wrote scripts for our files under 'scripts/cutadapt1.sh' (for SRR14784363) and 'scripts/cutadapt2.sh' (For SRR14784377). Let's see how the script worked for the samples:
+Next, we I wrote scripts for our files under 'scripts/cutadapt1.sh' (for SRR14784363) and 'scripts/cutadapt2.sh' (For SRR14784377).Let's see how the script worked for the samples:
 
 ```bash
 sbatch scripts/cutadapt1.sh
@@ -235,7 +243,9 @@ git commit -m "Part C"
 
 8. DADA2 Pipline Construction 
 
-DAD2 pipeline can help characterize microbiome composition. R Protocol for DADA2 can be found in this directory, in the DADA2.qmd file. DADA2.rmarkdown is a backup file with the same protocol and it can be ignored. You can also take a look at the rendered DADA2.html file. 
+DAD2 pipeline can help characterize microbiome composition. R Protocol for DADA2 can be found in this directory, in the DADA2.qmd file. You can also take a look at the rendered DADA2.html file. 
+
+In order to have R access my cutadapt files easily, I created a 'data/cutadapt_combined' directory and copied all cutadapt fastq files into it.  
 
 Before starting with R, I went into Cluster -> Pitzer Shell Access and used this command:
 
@@ -245,6 +255,16 @@ cp -rv /fs/ess/PAS2880/users/kolganovaanna/FinalProject/data/cutadapt_combined /
 
 **Conclusions**
 
-According to the analysis, good number of reads survived all of the manpulations that were done on them. I was able to generate a high-quality microbial community profile, which told me that Bacteroidota and Firmicutes are most abundant microbes in my samples. These taxonomic groups are actually very common in the rumen, which makes me more confident in the quality of my dada2 pipeline. 
+According to the analysis, a good number of reads successfully passed all processing steps. I was able to generate a high-quality microbial community profile, which told me that Bacteroidota and Firmicutes are most abundant microbes in my samples. These taxonomic groups are actually very common in the rumen, which makes me more confident in the quality of my dada2 pipeline. 
 Cutadapt and DADA2 are useful tools for amalyzing 16S sequencing data.
-I didn't have time to develop this project any further but I am planning to practice alpha and beta diversity in R over the break. This practice is a great opportunity for me to prepare for my own sequencing data analysis in the near future. 
+I didn't have time to develop this project any further (got sick) but I am planning to practice alpha and beta diversity in R over the break. This practice is a great opportunity for me to prepare for my own sequencing data analysis in the near future. 
+I believe I completed both course surveys. 
+
+*Git commit*:
+```bash
+git add Main_Protocol.md Notes.md DADA2.html DADA2.qmd
+git commit -m "Final Commit"
+git branch -M main
+git remote add origin git@github.com:kolganovaanna/FinalProject.git
+git push -u origin main
+```

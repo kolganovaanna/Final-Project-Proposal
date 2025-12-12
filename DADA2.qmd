@@ -1,0 +1,322 @@
+---
+title: "DADA2_Final_Project.qmd"
+author: "Anna Kolganova"
+format: html
+theme: cosmo 
+editor: visual
+embed-resources: true
+date: "2025-12-8"
+---
+
+## DADA2 Pipeline protocol
+
+**Note**: this pipeline was done referring to this website for guidance: https://jelmerp.github.io/metabar-ws24/05_dada.html
+
+First, we will load packages required for this pipeline:
+
+```{r}
+# Load the packages
+library(dada2)
+library(phyloseq)
+library(tidyverse)
+```
+
+Second, we will assign forward and reverse reads and check sample IDs
+
+```{r}
+# Saving the number of cores in a variable
+n_cores <- 4
+
+# Creating input, outputs, database file my sequences will be compared to, and data about my samples file directories
+indir <- "data/cutadapt_combined"
+outdir <- "results/dada"
+filter_dir <- "results/dada/filtered_fastq"
+tax_key <- "data/ref/silva_nr99_v138.1_train_set.fa.gz"
+
+# Creating output dirs for VS code
+dir.create(outdir, showWarnings = FALSE, recursive = TRUE)
+dir.create(filter_dir, showWarnings = FALSE, recursive = TRUE)
+
+# Creating vectors with FASTQ file names
+fastqs_raw_F <- sort(list.files(indir, pattern = "_1.fastq$", full.names = TRUE))
+fastqs_raw_R <- sort(list.files(indir, pattern = "_2.fastq$", full.names = TRUE))
+
+#Checking created vectors
+head(fastqs_raw_F)
+head(fastqs_raw_R)
+
+# Extracting sample IDs from filenames
+sample_ids <- sub("_1.fastq$", "", basename(fastqs_raw_F))
+sample_ids
+
+# Creating simple metadata
+metadata_df <- data.frame(
+    SampleID = sample_ids,
+    Treatment = NA,
+    Replicate = NA
+)
+
+# Saving metadata for DADA2
+dir.create("data/meta", recursive = TRUE, showWarnings = FALSE)
+metadata_file <- "data/meta/meta.tsv"
+
+write.table(metadata_df, file = metadata_file, sep = "\t", row.names = FALSE, quote = FALSE)
+
+# Reading back metadata
+metadata_df <- read.table(metadata_file, sep = "\t", header = TRUE)
+colnames(metadata_df)[1] <- "SampleID"
+rownames(metadata_df) <- metadata_df$SampleID
+
+head(metadata_df)
+metadata_df$SampleID
+
+# Checking filename-derived sample IDs
+sample_ids <- sub("_1.fastq$", "", basename(fastqs_raw_F))
+sample_ids
+
+identical(sort(metadata_df$SampleID), sample_ids)
+```
+
+Third, we will perform quality filtering (removing poor-quality reads) and trimming (removing poor-quality bases) on the FASTQ files. We will first figure out the truncLen argument (to make sure further steps will work for my samples):
+
+```{r}
+library(ShortRead)
+
+# Setting paths
+fwd <- "data/cutadapt_combined/SRR14784363_1.fastq"
+rev <- "data/cutadapt_combined/SRR14784363_2.fastq"
+
+# Checking reads
+fqF <- readFastq(fwd)
+fqR <- readFastq(rev)
+
+#Calculating medians
+medianF <- median(width(sread(fqF)))
+medianR <- median(width(sread(fqR)))
+
+medianF; medianR
+```
+
+We will use truncLen = 220:
+
+```{r}
+# Output file names
+fastqs_filt_F <- file.path(filter_dir, paste0(sample_ids, "_filt_F.fastq"))
+fastqs_filt_R <- file.path(filter_dir, paste0(sample_ids, "_filt_R.fastq"))
+
+#Filtering and trimming
+filter_results <-
+  filterAndTrim(fastqs_raw_F, fastqs_filt_F,
+                fastqs_raw_R, fastqs_filt_R,
+                truncLen = 220,
+                trimLeft = 10,
+                maxN = 0,
+                maxEE = c(2,2),
+                truncQ = 2,
+                rm.phix = FALSE,
+                multithread = n_cores,
+                compress = FALSE, verbose = TRUE) 
+
+print(filter_results)
+```
+
+**Note**: Below are explanations of arguments used in filterandTrim() function:
+
+::: callout
+-   `truncLen` - Truncate reads after `truncLen` bases and discard reads shorter than this. Could be adjusted depending on the primers that are used. Also could be left out in the case of a more variable sequence (Ex: ITS). The trimming length can be different for forward and reverse reads, which is good because reverse reads are often of worse quality.
+
+-   It is also suggested to trim the first 10 nucleotides of each read (`trimLeft` argument), since these positions are likely to contain errors.
+
+-   `maxEE` is an important argument that will let DADA2 trim reads based on the maximum numbers of Expected Errors (EE) given the quality scores of the reads' bases.
+
+-   `trunQ` - trim read after an instance of a quality score less than or equal to this number
+:::
+
+Next, we will we condense the data by collapsing together all reads that encode the same sequence
+
+```{r}
+# Dereplicating the FASTQ files
+fastqs_derep_F <- derepFastq(fastqs_filt_F)
+fastqs_derep_R <- derepFastq(fastqs_filt_R)
+
+names(fastqs_derep_F) <- sample_ids
+names(fastqs_derep_R) <- sample_ids
+```
+
+Next, we need to use learnErrors to produce error rates. It learns the error rates from your data by repeatedly estimating the errors and the true sequences until both agree:
+
+```{r}
+# Estimating errors to create an error model
+err_F <- learnErrors(fastqs_derep_F, multithread = n_cores, verbose = TRUE)
+err_R <- learnErrors(fastqs_derep_R, multithread = n_cores, verbose = TRUE)
+```
+
+We can also plot these error rates.
+
+```{r}
+# Saving plots as PDFs
+pdf("results/dada/err_F_plot.pdf")  
+plotErrors(err_F, nominalQ = TRUE)
+dev.off() 
+
+pdf("results/dada/err_R_plot.pdf")   
+plotErrors(err_R, nominalQ = TRUE)
+dev.off()
+```
+
+You can find output plots stored as pdf files in the VS Code FinalProject/results/dada/filtered_fastq dir. According to the guiding website, this is how the plots can be understood:
+
+::: callout
+These plot show error rates from the transition between all base pair transitions:
+
+-   Black points are observed error rates.
+
+-   The black line is estimated error rates using machine learning.
+
+-   The red line shows expected error rates under the nominal definition of the quality score.
+:::
+
+Next, we will run the main dada algorithm to infer Amplicon Sequence Variants (ASVs). ASVs are basically DNA sequences recovered from my data after correcting for sequencing errors estimated using the commands above. We're performing the commands for individual samples:
+
+```{r}
+# Inferring ASVs
+dada_Fs <- dada(fastqs_derep_F, err = err_F, pool = FALSE, multithread = n_cores)
+dada_Rs <- dada(fastqs_derep_R, err = err_R, pool = FALSE, multithread = n_cores)
+```
+
+Let's check the results for forward reads to see what it produced:
+
+```{r}
+dada_Fs[[1]]
+```
+
+Next, we will merge forward and reverse read pairs because now we have each DNA fragment from both ends. These fragments overlap, so we need to reconstruct the full sequence and account for errors:
+
+```{r}
+# Merging forward and reverse reads
+mergers <- mergePairs(dada_Fs, fastqs_derep_F,
+                      dada_Rs, fastqs_derep_R,
+                      verbose = TRUE)
+```
+
+We see our overlapping reads. Next, let's save our dereplicated sequence. We won't need them anymore:
+
+```{r}
+# Saving the dereplicated objects
+saveRDS(fastqs_derep_F, file = file.path(outdir, "fastqs_derep_F.rds"))
+saveRDS(fastqs_derep_R, file = file.path(outdir, "fastqs_derep_R.rds"))
+
+# Removing objects from environment
+rm(fastqs_derep_F, fastqs_derep_R) 
+```
+
+Now, we will make an ASVs table:
+
+```{r}
+# Creating the sequence table
+seqtab_all <- makeSequenceTable(mergers)
+
+# Checking the dimensions of the sequence table
+dim(seqtab_all)
+
+# Checking the ASV sequence lengths
+table(nchar(getSequences(seqtab_all)))
+```
+
+Next step is to remove chimeras. We remove chimeras because they are fake sequences created during PCR, formed by two real DNA fragments accidentally joining together. The presence of chimeras can negatively affect diversity and ASVs:
+
+```{r}
+# Identifying and removing chimeras
+seqtab <- removeBimeraDenovo(seqtab_all,
+                             method = "consensus",
+                             multithread = n_cores,
+                             verbose = TRUE)
+
+# Proportion of retained sequences:
+sum(seqtab) / sum(seqtab_all)
+
+# Saving the sequence table
+saveRDS(seqtab, file = file.path(outdir, "seqtab.rds"))
+```
+
+Finally, let's generate a summary table and save it into a file in VS Code:
+
+```{r}
+# Getting the numbers of unique reads at each step
+getN <- function(x) sum(getUniques(x))
+
+denoised_F <- sapply(dada_Fs, getN)
+denoised_R <- sapply(dada_Rs, getN)
+merged <- sapply(mergers, getN)
+```
+
+```{r}
+# Creating a summary table
+nreads_summary <- data.frame(filter_results,
+                             denoised_F,
+                             denoised_R,
+                             merged,
+                             nonchim = rowSums(seqtab),
+                             row.names = sample_ids)
+colnames(nreads_summary)[1:2] <- c("input", "filtered")
+```
+
+```{r}
+# Taking a look at the summary table 
+print(nreads_summary)
+# Writing the summary table to file
+write.table(nreads_summary,
+            file = file.path(outdir, "nreads_summary.txt"),
+            sep = "\t", quote = FALSE, row.names = TRUE)
+```
+
+**Note**: Most reads survive filtering and denoising, and chimeras are successfully removed, leaving high-quality reads for downstream analysis.
+
+Let's assigning taxonomy to ASVs and see how many ASVs are in each phylum:
+
+```{r}
+# Assigning taxonomy to the ASVs
+tax <- assignTaxonomy(seqtab, tax_key, multi = TRUE, verbose = TRUE)
+saveRDS(tax, file.path(outdir, "tax.rds"))
+```
+
+```{r}
+if(!identical(getSequences(tax), getSequences(seqtab))) stop("Taxonomy mismatch.")
+```
+
+```{r}
+# Answering how many ASVs are in each phylum
+table(tax[,"Phylum"], useNA = "ifany")
+```
+
+**Note**: Most sequences belong to Bacteroidota and Firmicutes.
+
+Last step is to generate output files:
+
+```{r}
+# Writing the output files
+# Preparing sequences and headers:
+asv_seqs <- colnames(seqtab)
+asv_headers <- paste(">ASV", 1:ncol(seqtab), sep = "_")
+
+# Interleaving headers and sequences:
+asv_fasta <- c(rbind(asv_headers, asv_seqs))
+
+# Writing fasta file:
+write(asv_fasta, file = file.path(outdir, "ASVs.fa"))
+```
+
+```{r}
+# Fixing the sample IDs in the sequence table
+rownames(seqtab) <- sub("_1.*", "", rownames(seqtab))
+```
+
+```{r}
+# Creating the phyloseq object
+ps <- phyloseq(otu_table(seqtab, taxa_are_rows = FALSE),
+               sample_data(metadata_df),
+               tax_table(tax))
+
+# Saving the phyloseq object as an .rds file:
+saveRDS(ps, file = file.path(outdir, "ps.rds"))
+```
