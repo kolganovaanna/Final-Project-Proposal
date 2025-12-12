@@ -74,11 +74,13 @@ git add Main_Protocol.md Notes.md
 git commit -m "Committing to main_protocol and notes to set up"
 echo "results/" > .gitignore
 echo "data/" >> .gitignore
+echo "ProgressReport/" >> .gitignore
+echo "ProjectProposal/" >> .gitignore
 git add .gitignore
 git commit -m "Adding a Gitignore file"
 ```
 
-**Note**: files that should be ignored in this working directory are ProgressReport and ProjectProposal. They are kept in the dir to only serve as the background for the project. 
+**Note**: files that should be ignored in this working directory are ProgressReport and ProjectProposal. They are kept in the dir to only serve as the background for the project. But they are added to .gitignore. 
 
 5. General analysis of the reads
 
