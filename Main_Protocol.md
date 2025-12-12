@@ -239,7 +239,7 @@ cp *slurm-cutadapt*.out *slurm-cutadapt*.err results/slurm/
 
 *Git commit*:
 ```bash
-git add scripts/*.sh Main_Protocol.md Notes.md
+git add scripts/*.sh results/* Main_Protocol.md Notes.md
 git commit -m "Part C"
 ```
 
